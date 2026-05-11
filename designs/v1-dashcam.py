@@ -74,13 +74,15 @@ INTERNAL_H = 50
 INT_W = PI_W + TOL * 2
 INT_D = PI_D + TOL * 2
 
-# Camera integration extends front/rear walls
-CAM_POCKET_DEPTH = CAM_H + LENS_PROTRUSION + 2
+# Camera housing that protrudes from case
+CAM_HOUSING_W = CAM_W + WALL * 2 + 4   # ~33mm wide
+CAM_HOUSING_H = CAM_D + WALL * 2 + 4   # ~32mm tall
+CAM_HOUSING_DEPTH = CAM_H + WALL + 4   # ~18mm deep — sticks out from case
 CAM_ANGLE = 15         # degrees downward tilt for road view
 
-# External dimensions
+# External dimensions (main box only — camera housings protrude separately)
 EXT_W = INT_W + WALL * 2
-EXT_D = INT_D + WALL * 2 + CAM_POCKET_DEPTH * 2  # extra for camera pockets
+EXT_D = INT_D + WALL * 2
 EXT_H = INTERNAL_H + WALL * 2
 SPLIT_H = EXT_H / 2   # case splits in half horizontally
 
@@ -88,7 +90,7 @@ SPLIT_H = EXT_H / 2   # case splits in half horizontally
 SNAP_W = 12
 SNAP_H = 3
 SNAP_DEPTH = 1.5
-SNAP_POSITIONS = [-30, -10, 10, 30]  # X positions along each long side
+SNAP_POSITIONS = [-25, 0, 25]  # X positions along each long side
 
 # --- Windshield mount ---
 MOUNT_W = 50
@@ -155,15 +157,97 @@ def make_vent_grid(count_x, count_y, slot_w, slot_l, gap_x, gap_y, depth):
 
 
 # =============================================================================
+# CAMERA HOUSING (protruding from front/rear face)
+# =============================================================================
+
+def build_camera_housing(side="front"):
+    """
+    Build a protruding camera housing that attaches to the case face.
+    The housing tilts 15deg downward and has:
+    - Camera module cavity
+    - Lens aperture hole
+    - M2 screw holes for camera board
+    - CSI ribbon cable slot at the base
+    """
+    # Outer housing block
+    housing = (
+        cq.Workplane("XY")
+        .box(CAM_HOUSING_W, CAM_HOUSING_DEPTH, CAM_HOUSING_H, centered=True)
+    )
+    # Fillet vertical edges for a cleaner look
+    housing = housing.edges("|Z").fillet(2)
+
+    # Camera module cavity (inside the housing)
+    cam_cavity = (
+        cq.Workplane("XY")
+        .box(CAM_W + TOL * 2, CAM_H + TOL, CAM_D + TOL * 2, centered=True)
+    )
+    housing = housing.cut(cam_cavity)
+
+    # Lens aperture through the outer face
+    lens_hole = (
+        cq.Workplane("XZ")
+        .workplane(offset=CAM_HOUSING_DEPTH / 2)
+        .circle(LENS_DIA / 2 + 1.5)
+        .extrude(WALL * 2)
+    )
+    housing = housing.cut(lens_hole)
+
+    # M2 screw holes for camera board mounting (4 corners)
+    for dx in [-CAM_HOLE_SPACING_W / 2, CAM_HOLE_SPACING_W / 2]:
+        for dz in [-CAM_HOLE_SPACING_H / 2, CAM_HOLE_SPACING_H / 2]:
+            m2_hole = (
+                cq.Workplane("XZ")
+                .center(dx, dz)
+                .workplane(offset=-(CAM_HOUSING_DEPTH / 2))
+                .circle(CAM_MOUNT_HOLE / 2)
+                .extrude(-(CAM_HOUSING_DEPTH))
+            )
+            housing = housing.cut(m2_hole)
+
+    # CSI ribbon cable slot at the back of the housing
+    ribbon_slot = (
+        cq.Workplane("XZ")
+        .workplane(offset=-(CAM_HOUSING_DEPTH / 2))
+        .rect(17, 3)
+        .extrude(-(WALL * 2))
+    )
+    housing = housing.cut(ribbon_slot)
+
+    # --- Position and angle the housing ---
+    # Tilt downward by CAM_ANGLE degrees
+    housing = housing.rotateAboutCenter((1, 0, 0), -CAM_ANGLE)
+
+    if side == "front":
+        # Attach to front face (+Y), centered vertically at mid-height
+        housing = housing.translate((
+            0,
+            EXT_D / 2 + CAM_HOUSING_DEPTH / 2 - 2,  # protrude from front face
+            SPLIT_H / 2 - 2   # vertically centered in bottom half
+        ))
+    else:
+        # Rear camera: rotate 180deg around Z then position on -Y face
+        housing = housing.rotateAboutCenter((0, 0, 1), 180)
+        housing = housing.translate((
+            0,
+            -(EXT_D / 2 + CAM_HOUSING_DEPTH / 2 - 2),
+            SPLIT_H / 2 - 2
+        ))
+
+    return housing
+
+
+# =============================================================================
 # BOTTOM HALF
 # =============================================================================
 
 def build_bottom_half():
     """
     Bottom half of the snap-fit enclosure.
-    Contains: Pi mounting posts, camera pockets (front + rear) angled 15 deg
-    down, CSI ribbon channels, USB-C / microSD / power button / LED cutouts,
-    side ventilation, and the snap-fit ledge rim.
+    Contains: Pi mounting posts, USB-C / microSD / power button / LED cutouts,
+    side ventilation, snap-fit ledge rim, and CSI ribbon cable passthrough
+    slots in front/rear walls.
+    Camera housings are added as separate protruding parts.
     """
 
     # --- Outer shell (rounded box, bottom half height) ---
@@ -171,107 +255,36 @@ def build_bottom_half():
         cq.Workplane("XY")
         .box(EXT_W, EXT_D, SPLIT_H, centered=True)
     )
-    # Fillet the vertical edges for rounded corners
     outer = outer.edges("|Z").fillet(CORNER_R)
 
-    # --- Inner cavity (hollows out the box, leaving WALL on bottom) ---
+    # --- Inner cavity ---
     cavity = (
         cq.Workplane("XY")
         .center(0, 0)
-        .workplane(offset=WALL)
+        .workplane(offset=WALL - SPLIT_H / 2)
         .box(INT_W, INT_D, SPLIT_H, centered=[True, True, False])
     )
     bottom = outer.cut(cavity)
 
     # -------------------------------------------------------------------------
-    # CAMERA POCKETS (integrated into front and rear walls, angled down)
+    # CSI RIBBON CABLE PASSTHROUGH (slots in front and rear walls)
     # -------------------------------------------------------------------------
 
-    # Front camera pocket (positive Y face)
-    front_cam_pocket = (
-        cq.Workplane("XY")
-        .center(0, INT_D / 2 + WALL + CAM_POCKET_DEPTH / 2 - 1)
-        .workplane(offset=2)
-        .transformed(rotate=cq.Vector(CAM_ANGLE, 0, 0))
-        .box(CAM_W + TOL * 2, CAM_POCKET_DEPTH, CAM_D + TOL * 2, centered=True)
-    )
-    bottom = bottom.cut(front_cam_pocket)
-
-    # Front lens aperture
-    front_lens = (
-        cq.Workplane("XZ")
-        .center(0, 2)
-        .workplane(offset=EXT_D / 2)
-        .transformed(rotate=cq.Vector(-(90 + CAM_ANGLE), 0, 0))
-        .circle(LENS_DIA / 2 + 1.5)
-        .extrude(WALL * 4)
-    )
-    bottom = bottom.cut(front_lens)
-
-    # Front camera M2 screw holes (4 corners of camera board)
-    for dx in [-CAM_HOLE_SPACING_W / 2, CAM_HOLE_SPACING_W / 2]:
-        for dz in [-CAM_HOLE_SPACING_H / 2, CAM_HOLE_SPACING_H / 2]:
-            hole = (
-                cq.Workplane("XZ")
-                .center(dx, dz + 2)
-                .workplane(offset=INT_D / 2 + WALL + CAM_POCKET_DEPTH - 2)
-                .circle(CAM_MOUNT_HOLE / 2)
-                .extrude(WALL * 3)
-            )
-            bottom = bottom.cut(hole)
-
-    # Rear camera pocket (negative Y face) -- mirror of front
-    rear_cam_pocket = (
-        cq.Workplane("XY")
-        .center(0, -(INT_D / 2 + WALL + CAM_POCKET_DEPTH / 2 - 1))
-        .workplane(offset=2)
-        .transformed(rotate=cq.Vector(-CAM_ANGLE, 0, 0))
-        .box(CAM_W + TOL * 2, CAM_POCKET_DEPTH, CAM_D + TOL * 2, centered=True)
-    )
-    bottom = bottom.cut(rear_cam_pocket)
-
-    # Rear lens aperture
-    rear_lens = (
-        cq.Workplane("XZ")
-        .center(0, 2)
-        .workplane(offset=-(EXT_D / 2))
-        .transformed(rotate=cq.Vector(90 + CAM_ANGLE, 0, 0))
-        .circle(LENS_DIA / 2 + 1.5)
-        .extrude(WALL * 4)
-    )
-    bottom = bottom.cut(rear_lens)
-
-    # Rear camera M2 screw holes
-    for dx in [-CAM_HOLE_SPACING_W / 2, CAM_HOLE_SPACING_W / 2]:
-        for dz in [-CAM_HOLE_SPACING_H / 2, CAM_HOLE_SPACING_H / 2]:
-            hole = (
-                cq.Workplane("XZ")
-                .center(dx, dz + 2)
-                .workplane(offset=-(INT_D / 2 + WALL + CAM_POCKET_DEPTH - 2))
-                .circle(CAM_MOUNT_HOLE / 2)
-                .extrude(-(WALL * 3))
-            )
-            bottom = bottom.cut(hole)
-
-    # -------------------------------------------------------------------------
-    # CSI RIBBON CABLE CHANNELS (Pi CSI connectors to each camera pocket)
-    # -------------------------------------------------------------------------
-
-    # Front CSI channel (offset +12mm in X, runs through front wall)
+    # Front wall CSI slot
     csi_front = (
         cq.Workplane("XY")
-        .center(12, INT_D / 2 + WALL / 2)
-        .workplane(offset=WALL + 2)
-        .box(17, WALL + CAM_POCKET_DEPTH + 2, 3, centered=True)
+        .center(12, EXT_D / 2)
+        .workplane(offset=WALL + 2 - SPLIT_H / 2)
+        .box(17, WALL * 3, 3, centered=True)
     )
     bottom = bottom.cut(csi_front)
 
-    # Rear CSI channel (offset -12mm in X, runs through rear wall)
+    # Rear wall CSI slot
     csi_rear = (
         cq.Workplane("XY")
-        .center(-12, -(INT_D / 2 + WALL / 2))
-        .workplane(offset=WALL + 2)
-        .box(17, WALL + CAM_POCKET_DEPTH + 2, 3, centered=True)
+        .center(-12, -(EXT_D / 2))
+        .workplane(offset=WALL + 2 - SPLIT_H / 2)
+        .box(17, WALL * 3, 3, centered=True)
     )
     bottom = bottom.cut(csi_rear)
 
@@ -279,29 +292,29 @@ def build_bottom_half():
     # PORT CUTOUTS
     # -------------------------------------------------------------------------
 
-    # USB-C power port (left side wall, Pi's USB-C is on the short edge)
+    # USB-C power port (left side wall)
     usbc = (
         cq.Workplane("XY")
         .center(-(EXT_W / 2), 15)
-        .workplane(offset=WALL + 4)
+        .workplane(offset=WALL + 4 - SPLIT_H / 2)
         .box(WALL * 3, 12, 7, centered=True)
     )
     bottom = bottom.cut(usbc)
 
-    # Cable routing channel (for hardwired 12V-to-USB-C adapter cable)
+    # Cable routing channel
     cable_chan = (
         cq.Workplane("XY")
         .center(-(EXT_W / 2), 15)
-        .workplane(offset=WALL + 10)
+        .workplane(offset=WALL + 10 - SPLIT_H / 2)
         .box(WALL * 3, CABLE_CHAN_W, CABLE_CHAN_H, centered=True)
     )
     bottom = bottom.cut(cable_chan)
 
-    # microSD card slot access (right side of Pi)
+    # microSD card slot access (right side)
     sd_slot = (
         cq.Workplane("XY")
         .center(EXT_W / 2, -20)
-        .workplane(offset=WALL + 2)
+        .workplane(offset=WALL + 2 - SPLIT_H / 2)
         .box(WALL * 3, SD_SLOT_W, SD_SLOT_H, centered=True)
     )
     bottom = bottom.cut(sd_slot)
@@ -310,29 +323,29 @@ def build_bottom_half():
     # BUTTON AND LED CUTOUTS
     # -------------------------------------------------------------------------
 
-    # Power button access hole (rear face, reaches Pi 5 power button)
+    # Power button access (rear face)
     pwr_btn = (
         cq.Workplane("XZ")
-        .center(35, WALL + 8)
+        .center(35, WALL + 8 - SPLIT_H / 2)
         .workplane(offset=-(EXT_D / 2))
         .circle(PWR_BTN_DIA / 2)
         .extrude(-(WALL * 3))
     )
     bottom = bottom.cut(pwr_btn)
 
-    # Status LED window (Pi activity LED, rear face)
+    # Status LED window (rear face)
     status_led = (
         cq.Workplane("XY")
         .center(30, -(EXT_D / 2))
-        .workplane(offset=WALL + 4)
+        .workplane(offset=WALL + 4 - SPLIT_H / 2)
         .box(STATUS_LED_W, WALL * 3, STATUS_LED_H, centered=True)
     )
     bottom = bottom.cut(status_led)
 
-    # Recording indicator LED hole (front face, visible from outside car)
+    # Recording indicator LED (front face)
     rec_led = (
         cq.Workplane("XZ")
-        .center(15, 10)
+        .center(15, 10 - SPLIT_H / 2)
         .workplane(offset=EXT_D / 2)
         .circle(LED_DIA / 2)
         .extrude(WALL * 3)
@@ -340,18 +353,16 @@ def build_bottom_half():
     bottom = bottom.cut(rec_led)
 
     # -------------------------------------------------------------------------
-    # SIDE VENTILATION GRIDS (both long sides)
+    # SIDE VENTILATION GRIDS
     # -------------------------------------------------------------------------
 
     vent_grid = make_vent_grid(1, VENT_ROWS, VENT_SLOT_W, VENT_SLOT_L, 0, VENT_GAP, WALL)
 
-    # Left side vents
-    left_vents = vent_grid.translate((-(EXT_W / 2), 0, SPLIT_H / 2 - 2))
+    left_vents = vent_grid.translate((-(EXT_W / 2), 0, -2))
     left_vents = left_vents.rotateAboutCenter((0, 1, 0), 90)
     bottom = bottom.cut(left_vents)
 
-    # Right side vents
-    right_vents = vent_grid.translate((EXT_W / 2, 0, SPLIT_H / 2 - 2))
+    right_vents = vent_grid.translate((EXT_W / 2, 0, -2))
     right_vents = right_vents.rotateAboutCenter((0, 1, 0), 90)
     bottom = bottom.cut(right_vents)
 
@@ -360,12 +371,10 @@ def build_bottom_half():
     # -------------------------------------------------------------------------
 
     for hx, hy in PI_HOLES:
-        # Position relative to cavity origin (bottom-left of Pi at cavity corner)
         px = hx - INT_W / 2 + TOL
         py = hy - INT_D / 2 + TOL
         pz = -(SPLIT_H / 2) + WALL
 
-        # Outer cylinder (standoff body)
         standoff = (
             cq.Workplane("XY")
             .center(px, py)
@@ -373,7 +382,6 @@ def build_bottom_half():
             .circle(STANDOFF_OUTER_R)
             .extrude(STANDOFF_H)
         )
-        # Inner hole (M2.5 screw hole)
         screw_hole = (
             cq.Workplane("XY")
             .center(px, py)
@@ -388,13 +396,11 @@ def build_bottom_half():
     # SNAP-FIT LEDGE (rim for top half to sit on)
     # -------------------------------------------------------------------------
 
-    # Outer rim
     snap_ledge_outer = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_H / 2 - 2)
         .box(INT_W + 2, INT_D + 2, 2, centered=[True, True, False])
     )
-    # Inner cutout (leaves a thin rim)
     snap_ledge_inner = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_H / 2 - 2.5)
@@ -403,7 +409,16 @@ def build_bottom_half():
     snap_ledge = snap_ledge_outer.cut(snap_ledge_inner)
     bottom = bottom.union(snap_ledge)
 
-    # Move bottom half so its base sits at Z=0 (on the build plate)
+    # -------------------------------------------------------------------------
+    # PROTRUDING CAMERA HOUSINGS (front + rear)
+    # -------------------------------------------------------------------------
+
+    front_cam = build_camera_housing("front")
+    rear_cam = build_camera_housing("rear")
+    bottom = bottom.union(front_cam)
+    bottom = bottom.union(rear_cam)
+
+    # Move bottom half so its base sits at Z=0 (build plate)
     bottom = bottom.translate((0, 0, SPLIT_H / 2))
 
     return bottom
@@ -417,11 +432,11 @@ def build_top_half():
     """
     Top half / lid of the snap-fit enclosure.
     Contains: 30mm fan mount with screw holes, GPS module recess with thinned
-    antenna window, snap-fit inner rim + tabs, camera pocket extensions,
-    windshield mount tab with adhesive slot, and 1/4-20 threaded insert hole.
+    antenna window, snap-fit inner rim + tabs, windshield mount tab with
+    adhesive slot, and 1/4-20 threaded insert hole.
     """
 
-    # --- Outer shell (top half height) ---
+    # --- Outer shell ---
     outer = (
         cq.Workplane("XY")
         .box(EXT_W, EXT_D, SPLIT_H, centered=True)
@@ -432,9 +447,9 @@ def build_top_half():
     cavity = (
         cq.Workplane("XY")
         .center(0, 0)
-        .workplane(offset=-WALL)
+        .workplane(offset=SPLIT_H / 2 - WALL)
         .box(INT_W, INT_D, SPLIT_H, centered=[True, True, False])
-        .translate((0, 0, -SPLIT_H + WALL))
+        .translate((0, 0, -(SPLIT_H)))
     )
     top = outer.cut(cavity)
 
@@ -451,7 +466,7 @@ def build_top_half():
     )
     top = top.cut(fan_hole)
 
-    # Fan M3 screw holes (4 corners of 24mm square pattern)
+    # Fan M3 screw holes
     for fx in [-FAN_HOLE_SPACING / 2, FAN_HOLE_SPACING / 2]:
         for fy in [-FAN_HOLE_SPACING / 2, FAN_HOLE_SPACING / 2]:
             screw = (
@@ -463,16 +478,15 @@ def build_top_half():
             )
             top = top.cut(screw)
 
-    # Fan intake ventilation grid (around the fan opening)
+    # Fan intake ventilation grid around the fan opening
     fan_vent_grid = make_vent_grid(4, 4, 2, 3, 4, 4, WALL)
     fan_vents = fan_vent_grid.translate((0, 0, SPLIT_H / 2))
     top = top.cut(fan_vents)
 
     # -------------------------------------------------------------------------
-    # GPS MODULE RECESS (top surface, offset from fan toward left side)
+    # GPS MODULE RECESS (top surface, offset from fan)
     # -------------------------------------------------------------------------
 
-    # Recessed pocket for the GPS board
     gps_recess = (
         cq.Workplane("XY")
         .center(-(EXT_W / 4), 0)
@@ -481,7 +495,7 @@ def build_top_half():
     )
     top = top.cut(gps_recess)
 
-    # Thinned antenna window (leaves ~0.5mm floor for GPS signal to pass)
+    # Thinned antenna window
     gps_window = (
         cq.Workplane("XY")
         .center(-(EXT_W / 4), 0)
@@ -490,7 +504,7 @@ def build_top_half():
     )
     top = top.cut(gps_window)
 
-    # GPS M3 mount holes (4 corners)
+    # GPS M3 mount holes
     for gx in [-(GPS_W / 2 - 2), (GPS_W / 2 - 2)]:
         for gy in [-(GPS_D / 2 - 2), (GPS_D / 2 - 2)]:
             gps_hole = (
@@ -503,25 +517,23 @@ def build_top_half():
             top = top.cut(gps_hole)
 
     # -------------------------------------------------------------------------
-    # SNAP-FIT INNER RIM (mates with bottom half ledge)
+    # SNAP-FIT INNER RIM + TABS
     # -------------------------------------------------------------------------
 
     snap_rim_outer = (
         cq.Workplane("XY")
         .workplane(offset=-(SPLIT_H / 2) + 1)
-        .box(INT_W, INT_D, 2.5, centered=[True, True, True])
+        .box(INT_W, INT_D, 2.5, centered=True)
     )
     snap_rim_inner = (
         cq.Workplane("XY")
         .workplane(offset=-(SPLIT_H / 2) + 1)
-        .box(INT_W - 3, INT_D - 3, 3.5, centered=[True, True, True])
+        .box(INT_W - 3, INT_D - 3, 3.5, centered=True)
     )
     snap_rim = snap_rim_outer.cut(snap_rim_inner)
     top = top.union(snap_rim)
 
-    # Snap tabs along front and rear edges (flexible clips)
     for xpos in SNAP_POSITIONS:
-        # Front side tabs (positive Y)
         tab_front = (
             cq.Workplane("XY")
             .center(xpos, INT_D / 2)
@@ -530,7 +542,6 @@ def build_top_half():
         )
         top = top.union(tab_front)
 
-        # Rear side tabs (negative Y)
         tab_rear = (
             cq.Workplane("XY")
             .center(xpos, -(INT_D / 2))
@@ -538,28 +549,6 @@ def build_top_half():
             .box(SNAP_W, SNAP_DEPTH, SNAP_H, centered=True)
         )
         top = top.union(tab_rear)
-
-    # -------------------------------------------------------------------------
-    # CAMERA POCKET EXTENSIONS (top half portions matching bottom pockets)
-    # -------------------------------------------------------------------------
-
-    front_cam_top = (
-        cq.Workplane("XY")
-        .center(0, INT_D / 2 + WALL + CAM_POCKET_DEPTH / 2 - 1)
-        .workplane(offset=-2)
-        .transformed(rotate=cq.Vector(CAM_ANGLE, 0, 0))
-        .box(CAM_W + TOL * 2, CAM_POCKET_DEPTH, CAM_D + TOL * 2, centered=True)
-    )
-    top = top.cut(front_cam_top)
-
-    rear_cam_top = (
-        cq.Workplane("XY")
-        .center(0, -(INT_D / 2 + WALL + CAM_POCKET_DEPTH / 2 - 1))
-        .workplane(offset=-2)
-        .transformed(rotate=cq.Vector(-CAM_ANGLE, 0, 0))
-        .box(CAM_W + TOL * 2, CAM_POCKET_DEPTH, CAM_D + TOL * 2, centered=True)
-    )
-    top = top.cut(rear_cam_top)
 
     # -------------------------------------------------------------------------
     # WINDSHIELD MOUNT TAB (on top surface)
@@ -581,7 +570,7 @@ def build_top_half():
     )
     top = top.cut(mount_slot)
 
-    # 1/4-20 threaded insert hole (standard camera/dashcam mount thread)
+    # 1/4-20 threaded insert hole
     quarter_twenty = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_H / 2)
@@ -590,8 +579,7 @@ def build_top_half():
     )
     top = top.cut(quarter_twenty)
 
-    # Position top half: float above bottom for assembly preview
-    # Bottom half top surface is at Z = SPLIT_H, add 0.5mm gap for visibility
+    # Position top half above bottom for assembly preview
     top = top.translate((0, 0, SPLIT_H + SPLIT_H / 2 + 0.5))
 
     return top
@@ -604,6 +592,5 @@ def build_top_half():
 bottom_half = build_bottom_half()
 top_half = build_top_half()
 
-# cadquery-server expects show_object() calls to render parts
 show_object(bottom_half, name="bottom_half", options={"color": (0.15, 0.15, 0.15, 0.9)})
-show_object(top_half, name="top_half", options={"color": (0.20, 0.20, 0.20, 0.85)})
+show_object(top_half, name="top_half", options={"color": (0.25, 0.25, 0.25, 0.85)})
