@@ -11,6 +11,7 @@ Loadable by cadquery-server via show_object().
 """
 
 import cadquery as cq
+from cq_server.ui import ui, show_object
 
 # =============================================================================
 # PARAMETRIC DIMENSIONS (all in mm)
@@ -187,4 +188,4 @@ def build_prototype():
 
 prototype = build_prototype()
 
-show_object(prototype, name="prototype_tray", options={"color": (80, 80, 80), "alpha": 0.1})
+show_object(prototype, name="prototype_tray", options={"color": (0.3, 0.3, 0.3, 0.9)})

@@ -14,6 +14,7 @@ Loadable by cadquery-server via show_object().
 
 import cadquery as cq
 import math
+from cq_server.ui import ui, show_object
 
 # =============================================================================
 # PARAMETRIC DIMENSIONS (all in mm)
@@ -604,5 +605,5 @@ bottom_half = build_bottom_half()
 top_half = build_top_half()
 
 # cadquery-server expects show_object() calls to render parts
-show_object(bottom_half, name="bottom_half", options={"color": (38, 38, 38), "alpha": 0.1})
-show_object(top_half, name="top_half", options={"color": (51, 51, 51), "alpha": 0.15})
+show_object(bottom_half, name="bottom_half", options={"color": (0.15, 0.15, 0.15, 0.9)})
+show_object(top_half, name="top_half", options={"color": (0.20, 0.20, 0.20, 0.85)})
