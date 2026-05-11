@@ -68,9 +68,11 @@ WALL = 2.5             # wall thickness (thicker for car vibration)
 CORNER_R = 3           # fillet radius on outer edges
 TOL = 0.4              # fit tolerance
 
-# Internal stack height:
-# standoffs(5) + Pi PCB(1.6) + under-board(3.5) + cooler(15) +
-# stacking header(16) + HAT(5.5) + clearance(3)
+# Internal stack height (floor to ceiling):
+# standoffs(5) + Pi PCB(1.6) + 16mm stacking header(16) +
+# HAT PCB(1.6) + Hailo-8L chip(5.5) = 29.7mm to top of Hailo.
+# Plus 30mm fan (10mm thick) mounted on lid pressing down + 5mm airflow gap.
+# Total needed: ~45mm. Adding 5mm margin for wiring/ribbon cables.
 INTERNAL_H = 50
 
 # Internal cavity dimensions
