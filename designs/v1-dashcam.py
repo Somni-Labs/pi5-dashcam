@@ -4,7 +4,7 @@ Dual Camera (Front + Rear) -- Car Mount Design
 
 Designed for: Raspberry Pi 5 + AI HAT+ (Hailo-8L)
 Cameras: 2x Raspberry Pi Camera Module v3 (integrated mounts)
-GPS: u-blox NEO-6M/7M/8M module (25x25mm standard)
+GPS: u-blox NEO-6M breakout (38x26mm PCB with 25x25mm ceramic antenna)
 Features: Snap-fit closure, 30mm fan, status LED, power button access
 Print material: PETG recommended (heat + vibration resistant)
 
@@ -20,18 +20,20 @@ from cq_server.ui import ui, show_object
 # PARAMETRIC DIMENSIONS (all in mm)
 # =============================================================================
 
-# --- Raspberry Pi 5 ---
-PI_W = 85.6            # board length
-PI_D = 56.5            # board width
+# --- Raspberry Pi 5 (official mechanical drawing) ---
+PI_W = 85.0            # board length (official: 85mm)
+PI_D = 56.0            # board width  (official: 56mm)
 PI_PCB_H = 1.6         # PCB thickness
-PI_MOUNT_HOLE = 2.7    # M2.5 mounting holes (diameter)
+PI_MOUNT_HOLE = 2.75   # M2.5 mounting holes (clearance 2.8-3.0mm)
 
 # Pi 5 mounting hole positions (from bottom-left corner of PCB)
+# Official: (5.5, 5.5), (79.5, 5.5), (5.5, 50.5), (79.5, 50.5)
+# Horizontal spacing: 74mm, Vertical spacing: 45mm
 PI_HOLES = [
-    (3.5, 3.5),
-    (61.5, 3.5),
-    (3.5, 52.5),
-    (61.5, 52.5),
+    (5.5, 5.5),
+    (79.5, 5.5),
+    (5.5, 50.5),
+    (79.5, 50.5),
 ]
 
 # --- AI HAT+ ---
@@ -48,11 +50,12 @@ CAM_MOUNT_HOLE = 2.0   # M2 camera mount screw diameter
 CAM_HOLE_SPACING_W = 21    # horizontal hole center-to-center
 CAM_HOLE_SPACING_H = 12.5  # vertical hole center-to-center
 
-# --- GPS Module (u-blox NEO standard) ---
-GPS_W = 25
-GPS_D = 25
-GPS_H = 4
-GPS_MOUNT_HOLE = 3.0   # M3
+# --- GPS Module (u-blox NEO-6M breakout board, e.g. GY-GPS6MV2) ---
+# Actual breakout PCB: 38 x 26 x 8.5mm (not just the 25x25 antenna)
+GPS_W = 26             # board width
+GPS_D = 38             # board length
+GPS_H = 8.5            # board height including antenna
+GPS_MOUNT_HOLE = 3.0   # M3 (common breakout board hole size)
 
 # --- 30mm Fan ---
 FAN_SIZE = 30

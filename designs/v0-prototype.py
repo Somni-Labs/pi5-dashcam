@@ -17,17 +17,18 @@ from cq_server.ui import ui, show_object
 # PARAMETRIC DIMENSIONS (all in mm)
 # =============================================================================
 
-# --- Raspberry Pi 5 ---
-PI_W = 85.6
-PI_D = 56.5
-PI_MOUNT_HOLE = 2.7    # M2.5
+# --- Raspberry Pi 5 (official mechanical drawing) ---
+PI_W = 85.0            # official: 85mm
+PI_D = 56.0            # official: 56mm
+PI_MOUNT_HOLE = 2.75   # M2.5 (clearance 2.8-3.0mm)
 
 # Mounting hole positions (from bottom-left corner)
+# Official: horizontal spacing 74mm, vertical spacing 45mm
 PI_HOLES = [
-    (3.5, 3.5),
-    (61.5, 3.5),
-    (3.5, 52.5),
-    (61.5, 52.5),
+    (5.5, 5.5),
+    (79.5, 5.5),
+    (5.5, 50.5),
+    (79.5, 50.5),
 ]
 
 # --- Case construction ---
