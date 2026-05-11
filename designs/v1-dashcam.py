@@ -293,32 +293,60 @@ def build_bottom_half():
 
     # -------------------------------------------------------------------------
     # PORT CUTOUTS
+    # Pi 5 orientation: USB-C/HDMI on left short wall (-X), microSD on
+    # right short wall (+X), USB 3.0/Ethernet on rear long wall (-Y, blocked
+    # by case — dashcam doesn't need network ports).
     # -------------------------------------------------------------------------
 
-    # USB-C power port (left side wall)
+    # USB-C power port (left short wall, -X face)
+    # Pi 5 USB-C: ~9mm wide x 3.2mm tall connector, centered ~11.2mm from
+    # bottom edge of the 56mm side. With standoffs (5mm) + PCB (1.6mm),
+    # the connector center is at ~WALL + 5 + 1.6 + 1.6 = ~10mm up from floor.
+    # Add extra clearance for connector housing: 12mm wide x 8mm tall cutout.
     usbc = (
-        cq.Workplane("XY")
-        .center(-(EXT_W / 2), 15)
-        .workplane(offset=WALL + 4 - SPLIT_H / 2)
-        .box(WALL * 3, 12, 7, centered=True)
+        cq.Workplane("YZ")
+        .workplane(offset=-(EXT_W / 2 + 1))
+        .center(-(INT_D / 2) + 11.2, WALL + STANDOFF_H + PI_PCB_H + 1.6 - SPLIT_H / 2)
+        .rect(12, 8)
+        .extrude(WALL + 2)
     )
     bottom = bottom.cut(usbc)
 
-    # Cable routing channel
+    # Cable routing channel (below USB-C, for hardwired 12V-to-USB-C cable)
     cable_chan = (
-        cq.Workplane("XY")
-        .center(-(EXT_W / 2), 15)
-        .workplane(offset=WALL + 10 - SPLIT_H / 2)
-        .box(WALL * 3, CABLE_CHAN_W, CABLE_CHAN_H, centered=True)
+        cq.Workplane("YZ")
+        .workplane(offset=-(EXT_W / 2 + 1))
+        .center(-(INT_D / 2) + 11.2, WALL + 2 - SPLIT_H / 2)
+        .rect(CABLE_CHAN_W, CABLE_CHAN_H)
+        .extrude(WALL + 2)
     )
     bottom = bottom.cut(cable_chan)
 
-    # microSD card slot access (right side)
+    # 2x micro HDMI ports (left short wall, above USB-C)
+    # Pi 5 has two micro HDMI ports on the same edge as USB-C.
+    # HDMI0 center ~26mm from bottom, HDMI1 center ~39.5mm from bottom
+    # of the 56mm edge. Each micro HDMI connector: ~7mm wide x 3mm tall.
+    for hdmi_y_offset in [26.0, 39.5]:
+        hdmi = (
+            cq.Workplane("YZ")
+            .workplane(offset=-(EXT_W / 2 + 1))
+            .center(-(INT_D / 2) + hdmi_y_offset,
+                    WALL + STANDOFF_H + PI_PCB_H + 1.6 - SPLIT_H / 2)
+            .rect(8, 4)
+            .extrude(WALL + 2)
+        )
+        bottom = bottom.cut(hdmi)
+
+    # microSD card slot access (right short wall, +X face)
+    # Pi 5 microSD is on the opposite short edge, spring-loaded slot.
+    # Roughly centered on the 56mm side at ~28mm from bottom edge.
+    # Slot opening: ~14mm wide x 3mm tall.
     sd_slot = (
-        cq.Workplane("XY")
-        .center(EXT_W / 2, -20)
-        .workplane(offset=WALL + 2 - SPLIT_H / 2)
-        .box(WALL * 3, SD_SLOT_W, SD_SLOT_H, centered=True)
+        cq.Workplane("YZ")
+        .workplane(offset=EXT_W / 2 - WALL)
+        .center(0, WALL + 2 - SPLIT_H / 2)
+        .rect(SD_SLOT_W, SD_SLOT_H)
+        .extrude(WALL + 2)
     )
     bottom = bottom.cut(sd_slot)
 
@@ -326,26 +354,33 @@ def build_bottom_half():
     # BUTTON AND LED CUTOUTS
     # -------------------------------------------------------------------------
 
-    # Power button access (rear face)
+    # Power button access hole
+    # Pi 5 power button is on the PCB top surface near the microSD edge
+    # (right short wall, +X side), about 3mm from the GPIO-side long edge.
+    # We cut a hole through the right wall for a poking tool / extension.
     pwr_btn = (
-        cq.Workplane("XZ")
-        .center(35, WALL + 8 - SPLIT_H / 2)
-        .workplane(offset=-(EXT_D / 2))
+        cq.Workplane("YZ")
+        .workplane(offset=EXT_W / 2 - WALL)
+        .center(INT_D / 2 - 5,
+                WALL + STANDOFF_H + PI_PCB_H + 3 - SPLIT_H / 2)
         .circle(PWR_BTN_DIA / 2)
-        .extrude(-(WALL * 3))
+        .extrude(WALL + 2)
     )
     bottom = bottom.cut(pwr_btn)
 
-    # Status LED window (rear face)
+    # Pi 5 activity LED window (on PCB surface, visible through case)
+    # LED is near the USB-C end. Window on left short wall.
     status_led = (
-        cq.Workplane("XY")
-        .center(30, -(EXT_D / 2))
-        .workplane(offset=WALL + 4 - SPLIT_H / 2)
-        .box(STATUS_LED_W, WALL * 3, STATUS_LED_H, centered=True)
+        cq.Workplane("YZ")
+        .workplane(offset=-(EXT_W / 2 + 1))
+        .center(-(INT_D / 2) + 3,
+                WALL + STANDOFF_H + PI_PCB_H + 2 - SPLIT_H / 2)
+        .rect(STATUS_LED_W, STATUS_LED_H)
+        .extrude(WALL + 2)
     )
     bottom = bottom.cut(status_led)
 
-    # Recording indicator LED (front face)
+    # Recording indicator LED (front face — visible from outside the car)
     rec_led = (
         cq.Workplane("XZ")
         .center(15, 10 - SPLIT_H / 2)
