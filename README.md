@@ -15,21 +15,25 @@
 
 | File | Description |
 |------|-------------|
-| `designs/v0-prototype.jscad` | Initial prototype with separate camera arms |
-| `designs/v1-dashcam.jscad` | V1 — integrated cameras, snap-fit, fan, GPS |
+| `designs/v0-prototype.py` | Simplified prototype — open-top tray for fit checks |
+| `designs/v1-dashcam.py` | V1 — full snap-fit enclosure with all features |
 | `stl/` | Exported STL files ready for slicing |
+
+Designs are written in **CadQuery** (Python) and rendered via [cadquery-server](https://github.com/robodk/cadquery-server). Open in any CadQuery-compatible viewer or our self-hosted instance.
 
 ## V1 Features
 
-- **Integrated camera mounts** — front and rear cameras angled 15deg downward, built into case walls
-- **Snap-fit closure** — no screws needed to open/close
-- **30mm fan mount** — centered over AI HAT for active cooling
-- **GPS module recess** — top-mounted with thinned wall for antenna signal
-- **1/4-20 mount** — standard dashcam/camera mount thread
+- **Snap-fit two-piece enclosure** — bottom tray + top lid with snap tabs, no screws needed
+- **Integrated camera mounts** — front and rear cameras angled 15deg downward with M2 mounting holes
+- **CSI ribbon cable channels** — routed from Pi to each camera pocket
+- **30mm fan mount** — centered over AI HAT for active cooling with M3 screw holes
+- **GPS module recess** — top-mounted (u-blox NEO 25x25mm) with thinned antenna window
+- **1/4-20 mount** — standard dashcam/camera mount threaded insert hole
 - **Cable routing channel** — for hardwired 12V USB-C power
 - **Status indicators** — recording LED (front), Pi activity LED window
 - **Full port access** — USB-C power, microSD, power button
 - **Ventilation** — side grids + fan intake
+- **2.5mm walls** — PETG, vibration resistant for vehicle use
 
 ## Print Settings
 
@@ -41,7 +45,15 @@
 
 ## Editing
 
-Open `.jscad` files in [OpenJSCAD](https://openjscad.xyz) or our self-hosted instance.
+Designs use [CadQuery](https://cadquery.readthedocs.io/) — a Python parametric CAD library backed by OpenCascade. All dimensions are defined as variables at the top of each file for easy customization.
+
+```bash
+# Run locally
+pip install cadquery cadquery-server
+cq-server /path/to/designs/
+
+# Or use our self-hosted CadQuery Server instance
+```
 
 ## License
 
