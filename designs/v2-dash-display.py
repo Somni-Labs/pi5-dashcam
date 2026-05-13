@@ -273,6 +273,76 @@ def build_magnet_recess(x, y):
 
 
 # =============================================================================
+# HELPER: Wedge shell and cavity
+# =============================================================================
+
+def build_wedge_shell(width, is_left=True):
+    """
+    Build a wedge-profiled outer shell for one half of the enclosure.
+
+    The wedge cross-section (Y-Z plane) is a trapezoid:
+    - Bottom edge: full EXT_DEPTH wide (flat on dashboard)
+    - Top edge: FRONT_DEPTH wide (thin front bezel)
+    - Height: EXT_HEIGHT
+    - The front face (Y+) is vertical
+    - The rear face (Y-) slopes forward as it rises
+
+    Args:
+        width: how wide this piece is along X
+        is_left: True for left half, False for right half
+    """
+    # Build the trapezoidal cross-section as a 2D sketch then extrude
+    # Points defined in Y-Z plane:
+    #   bottom-rear: (-EXT_DEPTH/2, 0)
+    #   bottom-front: (EXT_DEPTH/2, 0)
+    #   top-front: (EXT_DEPTH/2, EXT_HEIGHT)
+    #   top-rear: (EXT_DEPTH/2 - FRONT_DEPTH, EXT_HEIGHT)
+    # Wait — we want the front face vertical and the rear face angled.
+    # Front face is at Y = EXT_DEPTH/2, vertical from Z=0 to Z=EXT_HEIGHT.
+    # Rear face at bottom is Y = -EXT_DEPTH/2, at top is closer to front.
+    rear_top_y = EXT_DEPTH / 2 - FRONT_DEPTH  # rear wall moves forward at top
+
+    wedge = (
+        cq.Workplane("YZ")
+        .moveTo(-EXT_DEPTH / 2, 0)           # bottom-rear
+        .lineTo(EXT_DEPTH / 2, 0)            # bottom-front
+        .lineTo(EXT_DEPTH / 2, EXT_HEIGHT)   # top-front
+        .lineTo(rear_top_y, EXT_HEIGHT)      # top-rear (angled in)
+        .close()
+        .extrude(width)
+    )
+
+    # Center the extrusion on X
+    wedge = wedge.translate((-(width / 2), 0, 0))
+
+    return wedge
+
+
+def build_wedge_cavity(width):
+    """
+    Build the internal cavity matching the wedge profile, offset by WALL
+    on all sides. Used to hollow out the shell.
+    """
+    inner_depth_bottom = EXT_DEPTH - WALL * 2
+    inner_depth_top = FRONT_DEPTH - WALL * 2
+    rear_top_y = EXT_DEPTH / 2 - FRONT_DEPTH + WALL
+
+    cavity = (
+        cq.Workplane("YZ")
+        .moveTo(-(EXT_DEPTH / 2 - WALL), WALL)
+        .lineTo(EXT_DEPTH / 2 - WALL, WALL)
+        .lineTo(EXT_DEPTH / 2 - WALL, EXT_HEIGHT - WALL)
+        .lineTo(rear_top_y, EXT_HEIGHT - WALL)
+        .close()
+        .extrude(width)
+    )
+
+    cavity = cavity.translate((-(width / 2), 0, 0))
+
+    return cavity
+
+
+# =============================================================================
 # LEFT-BOTTOM (rear camera housing + left base tray)
 # =============================================================================
 
