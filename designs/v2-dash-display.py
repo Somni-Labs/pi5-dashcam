@@ -340,15 +340,15 @@ def build_wedge_cavity(width):
 
 
 # =============================================================================
-# LEFT-BOTTOM (rear camera housing + left base tray)
+# LEFT-BOTTOM (left base tray — no camera housing)
 # =============================================================================
 
 def build_left_bottom():
     """Left half of the bottom shell.
-    Contains: rear camera housing, magnet recesses, left-side Pi standoffs,
-    CSI ribbon cable channel, center seam tongue tabs + screw boss.
+    Contains: magnet recesses, left-side Pi standoffs, vertical CSI cable
+    channel, snap-fit ledge, center seam tongue tabs + screw boss.
     """
-    half_w = TOTAL_W / 2  # ~145mm
+    half_w = TOTAL_W / 2  # ~148mm
 
     # --- Outer wedge shell (left half width) ---
     shell = build_wedge_shell(half_w)
@@ -365,30 +365,24 @@ def build_left_bottom():
 
     # -------------------------------------------------------------------------
     # MAGNET RECESSES (2 magnets in left half, evenly spaced)
-    # Magnets sit in the bottom face (Z=0), recessed upward
     # -------------------------------------------------------------------------
-    magnet_spacing = PLATE_W / (MAGNET_COUNT + 1)  # ~62.5mm apart
+    magnet_spacing = PLATE_W / (MAGNET_COUNT + 1)
     for i in range(MAGNET_COUNT // 2):
         mx = -(half_w / 2) + magnet_spacing * (i + 1)
         recess = build_magnet_recess(mx, 0)
         piece = piece.cut(recess)
 
     # -------------------------------------------------------------------------
-    # PI 5 MOUNTING STANDOFFS (left-side holes only: indices 0 and 2)
-    # Pi is centered in the center zone, so standoffs are near the seam edge
-    # Pi center is at X=0 in the full assembly, so in the left half,
-    # the right edge of the Pi is near the seam (X=0 maps to X=half_w/2
-    # in left-half local coords... but we build in global coords and
-    # cut at the seam later).
+    # PI 5 MOUNTING STANDOFFS (left-side holes: indices 0 and 2)
+    # Pi centered at X=0, Y shifted toward front (behind display)
     # -------------------------------------------------------------------------
-    # Pi is centered at X=0, Y shifted toward front (behind display)
     pi_center_y = EXT_DEPTH / 2 - WALL - DISP_PCB_T - DSI_CABLE_GAP - PI_D / 2
 
-    for idx in [0, 2]:  # left-side Pi holes (X = 5.5mm from Pi left edge)
+    for idx in [0, 2]:
         hx, hy = PI_HOLES[idx]
-        px = hx - PI_W / 2  # offset from Pi center
+        px = hx - PI_W / 2
         py = pi_center_y + (hy - PI_D / 2)
-        pz = WALL  # standoff sits on the floor
+        pz = WALL
 
         standoff = (
             cq.Workplane("XY")
@@ -408,13 +402,15 @@ def build_left_bottom():
         piece = piece.union(post)
 
     # -------------------------------------------------------------------------
-    # CSI RIBBON CABLE CHANNEL (floor-level groove from center to left end)
+    # CSI CABLE CHANNEL (vertical — from top of bottom half down to Pi)
+    # Cameras are at top-center, cables route down through the side bezel
+    # near the seam edge. Left half carries one cable channel.
     # -------------------------------------------------------------------------
     csi_channel = (
         cq.Workplane("XY")
         .workplane(offset=WALL)
-        .center(-(half_w / 4), pi_center_y)
-        .box(half_w / 2, CSI_SLOT_W, CSI_SLOT_H, centered=True)
+        .center(half_w / 2 - 10, pi_center_y + PI_D / 4)
+        .box(CSI_SLOT_W, CSI_SLOT_H + 2, SPLIT_Z - WALL, centered=[True, True, False])
     )
     piece = piece.cut(csi_channel)
 
@@ -424,20 +420,18 @@ def build_left_bottom():
     snap_ledge_outer = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 2)
-        .center(0, 0)
         .box(half_w - 2, EXT_DEPTH - 2, 2, centered=[True, True, False])
     )
     snap_ledge_inner = (
         cq.Workplane("XY")
         .workplane(offset=SPLIT_Z - 2.5)
-        .center(0, 0)
         .box(half_w - 6, EXT_DEPTH - 6, 3, centered=[True, True, False])
     )
     snap_ledge = snap_ledge_outer.cut(snap_ledge_inner)
     piece = piece.union(snap_ledge)
 
     # -------------------------------------------------------------------------
-    # CENTER SEAM: tongue tabs (protrude from +X face for mating with right half)
+    # CENTER SEAM: tongue tabs (protrude from +X face)
     # -------------------------------------------------------------------------
     for tz in SEAM_TAB_POSITIONS:
         tab = (
@@ -448,7 +442,7 @@ def build_left_bottom():
         )
         piece = piece.union(tab)
 
-    # Seam screw boss (one at mid-height)
+    # Seam screw boss
     boss = (
         cq.Workplane("XY")
         .center(half_w / 2 - SEAM_BOSS_R, 0)
@@ -465,14 +459,6 @@ def build_left_bottom():
     )
     boss = boss.cut(boss_hole)
     piece = piece.union(boss)
-
-    # -------------------------------------------------------------------------
-    # REAR CAMERA HOUSING (protruding from -X end)
-    # -------------------------------------------------------------------------
-    rear_cam = build_camera_housing("rear")
-    # Position vertically centered in the bottom half
-    rear_cam = rear_cam.translate((0, 0, SPLIT_Z / 2))
-    piece = piece.union(rear_cam)
 
     return piece
 
