@@ -20,7 +20,7 @@ Loadable by cadquery-server via show_object().
 """
 
 import cadquery as cq
-from cq_server.ui import ui, show_object
+from cq_server.ui import show_object
 
 # =============================================================================
 # PARAMETRIC DIMENSIONS (all in mm)
@@ -733,15 +733,16 @@ def build_left_top():
     )
     piece = piece.cut(gps_window)
 
-    for gy in [-(GPS_D / 2 - 2), (GPS_D / 2 - 2)]:
-        gps_hole = (
-            cq.Workplane("XY")
-            .center(gps_x - (GPS_W / 2 - 2), gps_y + gy)
-            .workplane(offset=EXT_HEIGHT - WALL - GPS_H)
-            .circle(GPS_MOUNT_HOLE / 2)
-            .extrude(GPS_H + WALL + 2)
-        )
-        piece = piece.cut(gps_hole)
+    for gx in [-(GPS_W / 2 - 2), (GPS_W / 2 - 2)]:
+        for gy in [-(GPS_D / 2 - 2), (GPS_D / 2 - 2)]:
+            gps_hole = (
+                cq.Workplane("XY")
+                .center(gps_x + gx, gps_y + gy)
+                .workplane(offset=EXT_HEIGHT - WALL - GPS_H)
+                .circle(GPS_MOUNT_HOLE / 2)
+                .extrude(GPS_H + WALL + 2)
+            )
+            piece = piece.cut(gps_hole)
 
     # -------------------------------------------------------------------------
     # SNAP-FIT INNER RIM + TABS
