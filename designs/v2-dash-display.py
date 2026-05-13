@@ -785,13 +785,13 @@ def build_left_top():
 
 
 # =============================================================================
-# RIGHT-TOP (right display bezel + fan mount + GPS recess right portion)
+# RIGHT-TOP (right display bezel + right half camera pocket + fan)
 # =============================================================================
 
 def build_right_top():
     """Right half of the top shell.
-    Contains: right display bezel, 30mm fan mount with screw holes,
-    right portion of GPS recess, Pi activity LED window, rear panel vents,
+    Contains: right display bezel, right half of camera pocket,
+    30mm fan mount, rear panel vents, Pi activity LED window,
     snap-fit tabs, center seam groove slots.
     """
     half_w = TOTAL_W / 2
@@ -811,10 +811,11 @@ def build_right_top():
     # -------------------------------------------------------------------------
     # DISPLAY BEZEL OPENING (right half of active area)
     # -------------------------------------------------------------------------
+    disp_center_z = DISP_ZONE_H / 2
     bezel_opening = (
         cq.Workplane("XZ")
         .workplane(offset=EXT_DEPTH / 2 - WALL + 0.5)
-        .center(0, EXT_HEIGHT / 2)
+        .center(0, disp_center_z)
         .box(half_w - WALL * 2, DISP_ACTIVE_H + 2, WALL + 1, centered=True)
     )
     piece = piece.cut(bezel_opening)
@@ -822,24 +823,36 @@ def build_right_top():
     disp_lip = (
         cq.Workplane("XZ")
         .workplane(offset=EXT_DEPTH / 2 - WALL - 2)
-        .center(0, EXT_HEIGHT / 2)
+        .center(0, disp_center_z)
         .box(half_w - WALL, DISP_PCB_H + TOL * 2, 2, centered=True)
     )
     piece = piece.cut(disp_lip)
 
     # -------------------------------------------------------------------------
-    # 30mm FAN MOUNT (rear wall, centered over AI HAT position)
-    # Fan is in the right half since the Pi center is at X=0 and the fan
-    # sits directly above the HAT. Position near the seam edge.
+    # CAMERA POCKET (right half — pocket straddles the center seam)
     # -------------------------------------------------------------------------
+    cam_pocket = build_camera_pocket()
+    cam_z = DISP_ZONE_H + CAM_ZONE_H / 2
+    cam_pocket = cam_pocket.translate((-(half_w / 2), 0, cam_z))
+    piece = piece.cut(cam_pocket)
 
-    # Fan center position: near seam (X ≈ -half_w/2 + some offset),
-    # on the rear wall, vertically centered in the top half
-    fan_cx = -(half_w / 4)  # slightly left of center in right half
-    fan_cy = -(EXT_DEPTH / 2)  # rear face
-    fan_cz = EXT_HEIGHT * 3 / 4  # vertically centered in top half
+    # CSI cable channel from camera pocket down to split plane
+    csi_vertical = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z)
+        .center(-(half_w / 2) + 10, 0)
+        .box(CSI_SLOT_W, CSI_SLOT_H + 2, DISP_ZONE_H / 2 + CAM_ZONE_H,
+             centered=[True, True, False])
+    )
+    piece = piece.cut(csi_vertical)
 
-    # Fan intake hole through rear wall
+    # -------------------------------------------------------------------------
+    # 30mm FAN MOUNT (rear wall, centered over AI HAT position)
+    # -------------------------------------------------------------------------
+    fan_cx = -(half_w / 4)
+    fan_cy = -(EXT_DEPTH / 2)
+    fan_cz = SPLIT_Z + (DISP_ZONE_H - SPLIT_Z) / 2  # in display zone of top half
+
     fan_hole = (
         cq.Workplane("XZ")
         .center(fan_cx, fan_cz)
@@ -849,7 +862,6 @@ def build_right_top():
     )
     piece = piece.cut(fan_hole)
 
-    # Fan M3 screw holes (4 corners)
     for fx in [-FAN_HOLE_SPACING / 2, FAN_HOLE_SPACING / 2]:
         for fz in [-FAN_HOLE_SPACING / 2, FAN_HOLE_SPACING / 2]:
             fan_screw = (
@@ -861,7 +873,6 @@ def build_right_top():
             )
             piece = piece.cut(fan_screw)
 
-    # Fan intake ventilation grid around the fan opening
     fan_vent_grid = make_vent_grid(3, 3, 2, 3, 4, 4, WALL)
     fan_vents = fan_vent_grid.translate((fan_cx, fan_cy, fan_cz))
     fan_vents = fan_vents.rotateAboutCenter((1, 0, 0), 90)
@@ -871,43 +882,13 @@ def build_right_top():
     # REAR PANEL VENTILATION (right portion)
     # -------------------------------------------------------------------------
     vent_grid_rear = make_vent_grid(4, 3, VENT_SLOT_W, VENT_SLOT_L, 4, VENT_GAP, WALL)
-    rear_vents = vent_grid_rear.translate((half_w / 4, -(EXT_DEPTH / 2), EXT_HEIGHT * 3 / 4))
+    rear_vents = vent_grid_rear.translate((half_w / 4, -(EXT_DEPTH / 2),
+                                           SPLIT_Z + (DISP_ZONE_H - SPLIT_Z) / 2))
     rear_vents = rear_vents.rotateAboutCenter((1, 0, 0), 90)
     piece = piece.cut(rear_vents)
 
     # -------------------------------------------------------------------------
-    # GPS MODULE RECESS (right portion — straddles seam)
-    # -------------------------------------------------------------------------
-    gps_recess = (
-        cq.Workplane("XY")
-        .center(-(half_w / 2) + 5, -(EXT_DEPTH / 4))
-        .workplane(offset=EXT_HEIGHT - WALL - GPS_H / 2)
-        .box(GPS_W + TOL * 2, GPS_D + TOL * 2, GPS_H + 1, centered=True)
-    )
-    piece = piece.cut(gps_recess)
-
-    # GPS antenna window (right portion)
-    gps_window = (
-        cq.Workplane("XY")
-        .center(-(half_w / 2) + 5, -(EXT_DEPTH / 4))
-        .workplane(offset=EXT_HEIGHT - GPS_WINDOW_THICKNESS)
-        .box(GPS_ANTENNA_SIZE - 4, GPS_ANTENNA_SIZE - 4, WALL, centered=True)
-    )
-    piece = piece.cut(gps_window)
-
-    # GPS M3 mount holes (right-side pair)
-    for gy in [-(GPS_D / 2 - 2), (GPS_D / 2 - 2)]:
-        gps_hole = (
-            cq.Workplane("XY")
-            .center(-(half_w / 2) + 5 + (GPS_W / 2 - 2), -(EXT_DEPTH / 4) + gy)
-            .workplane(offset=EXT_HEIGHT - WALL - GPS_H)
-            .circle(GPS_MOUNT_HOLE / 2)
-            .extrude(GPS_H + WALL + 2)
-        )
-        piece = piece.cut(gps_hole)
-
-    # -------------------------------------------------------------------------
-    # PI ACTIVITY LED WINDOW (optional, on front face near bottom-right)
+    # PI ACTIVITY LED WINDOW (front face)
     # -------------------------------------------------------------------------
     status_led = (
         cq.Workplane("XZ")
@@ -934,18 +915,18 @@ def build_right_top():
     snap_rim = snap_rim_outer.cut(snap_rim_inner)
     piece = piece.union(snap_rim)
 
-    for zpos in SNAP_POSITIONS_Z:
+    for xpos in SNAP_POSITIONS_X:
         for y_sign in [1, -1]:
             tab = (
                 cq.Workplane("XY")
-                .center(zpos, y_sign * (EXT_DEPTH / 2 - WALL))
+                .center(xpos, y_sign * (EXT_DEPTH / 2 - WALL))
                 .workplane(offset=SPLIT_Z + 1)
                 .box(SNAP_W, SNAP_DEPTH, SNAP_H, centered=True)
             )
             piece = piece.union(tab)
 
     # -------------------------------------------------------------------------
-    # CENTER SEAM: groove slots (-X face, receives tongues from left-top)
+    # CENTER SEAM: groove slots (-X face)
     # -------------------------------------------------------------------------
     for tz in SEAM_TAB_POSITIONS:
         groove = (
