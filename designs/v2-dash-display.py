@@ -813,10 +813,174 @@ def build_left_top():
 # =============================================================================
 
 def build_right_top():
-    """Right half of the top shell. Contains right display bezel,
-    fan mount, right portion of GPS recess, snap-fit tabs."""
-    # TODO: implement in Task 8
-    return cq.Workplane("XY").box(TOTAL_W / 2, EXT_DEPTH, SPLIT_Z, centered=True)
+    """Right half of the top shell.
+    Contains: right display bezel, 30mm fan mount with screw holes,
+    right portion of GPS recess, Pi activity LED window, rear panel vents,
+    snap-fit tabs, center seam groove slots.
+    """
+    half_w = TOTAL_W / 2
+
+    # --- Outer wedge shell ---
+    shell = build_wedge_shell(half_w)
+    cavity = build_wedge_cavity(half_w)
+    piece = shell.cut(cavity)
+
+    # --- Keep only top half ---
+    bottom_cutter = (
+        cq.Workplane("XY")
+        .box(half_w + 10, EXT_DEPTH + 10, SPLIT_Z, centered=[True, True, False])
+    )
+    piece = piece.cut(bottom_cutter)
+
+    # -------------------------------------------------------------------------
+    # DISPLAY BEZEL OPENING (right half of active area)
+    # -------------------------------------------------------------------------
+    bezel_opening = (
+        cq.Workplane("XZ")
+        .workplane(offset=EXT_DEPTH / 2 - WALL + 0.5)
+        .center(0, EXT_HEIGHT / 2)
+        .box(half_w - WALL * 2, DISP_ACTIVE_H + 2, WALL + 1, centered=True)
+    )
+    piece = piece.cut(bezel_opening)
+
+    disp_lip = (
+        cq.Workplane("XZ")
+        .workplane(offset=EXT_DEPTH / 2 - WALL - 2)
+        .center(0, EXT_HEIGHT / 2)
+        .box(half_w - WALL, DISP_PCB_H + TOL * 2, 2, centered=True)
+    )
+    piece = piece.cut(disp_lip)
+
+    # -------------------------------------------------------------------------
+    # 30mm FAN MOUNT (rear wall, centered over AI HAT position)
+    # Fan is in the right half since the Pi center is at X=0 and the fan
+    # sits directly above the HAT. Position near the seam edge.
+    # -------------------------------------------------------------------------
+
+    # Fan center position: near seam (X ≈ -half_w/2 + some offset),
+    # on the rear wall, vertically centered in the top half
+    fan_cx = -(half_w / 4)  # slightly left of center in right half
+    fan_cy = -(EXT_DEPTH / 2)  # rear face
+    fan_cz = EXT_HEIGHT * 3 / 4  # vertically centered in top half
+
+    # Fan intake hole through rear wall
+    fan_hole = (
+        cq.Workplane("XZ")
+        .center(fan_cx, fan_cz)
+        .workplane(offset=fan_cy)
+        .circle(FAN_SIZE / 2 - 2)
+        .extrude(-(WALL + 2))
+    )
+    piece = piece.cut(fan_hole)
+
+    # Fan M3 screw holes (4 corners)
+    for fx in [-FAN_HOLE_SPACING / 2, FAN_HOLE_SPACING / 2]:
+        for fz in [-FAN_HOLE_SPACING / 2, FAN_HOLE_SPACING / 2]:
+            fan_screw = (
+                cq.Workplane("XZ")
+                .center(fan_cx + fx, fan_cz + fz)
+                .workplane(offset=fan_cy)
+                .circle(FAN_MOUNT_HOLE / 2)
+                .extrude(-(WALL + 2))
+            )
+            piece = piece.cut(fan_screw)
+
+    # Fan intake ventilation grid around the fan opening
+    fan_vent_grid = make_vent_grid(3, 3, 2, 3, 4, 4, WALL)
+    fan_vents = fan_vent_grid.translate((fan_cx, fan_cy, fan_cz))
+    fan_vents = fan_vents.rotateAboutCenter((1, 0, 0), 90)
+    piece = piece.cut(fan_vents)
+
+    # -------------------------------------------------------------------------
+    # REAR PANEL VENTILATION (right portion)
+    # -------------------------------------------------------------------------
+    vent_grid_rear = make_vent_grid(4, 3, VENT_SLOT_W, VENT_SLOT_L, 4, VENT_GAP, WALL)
+    rear_vents = vent_grid_rear.translate((half_w / 4, -(EXT_DEPTH / 2), EXT_HEIGHT * 3 / 4))
+    rear_vents = rear_vents.rotateAboutCenter((1, 0, 0), 90)
+    piece = piece.cut(rear_vents)
+
+    # -------------------------------------------------------------------------
+    # GPS MODULE RECESS (right portion — straddles seam)
+    # -------------------------------------------------------------------------
+    gps_recess = (
+        cq.Workplane("XY")
+        .center(-(half_w / 2) + 5, -(EXT_DEPTH / 4))
+        .workplane(offset=EXT_HEIGHT - WALL - GPS_H / 2)
+        .box(GPS_W + TOL * 2, GPS_D + TOL * 2, GPS_H + 1, centered=True)
+    )
+    piece = piece.cut(gps_recess)
+
+    # GPS antenna window (right portion)
+    gps_window = (
+        cq.Workplane("XY")
+        .center(-(half_w / 2) + 5, -(EXT_DEPTH / 4))
+        .workplane(offset=EXT_HEIGHT - GPS_WINDOW_THICKNESS)
+        .box(GPS_ANTENNA_SIZE - 4, GPS_ANTENNA_SIZE - 4, WALL, centered=True)
+    )
+    piece = piece.cut(gps_window)
+
+    # GPS M3 mount holes (right-side pair)
+    for gy in [-(GPS_D / 2 - 2), (GPS_D / 2 - 2)]:
+        gps_hole = (
+            cq.Workplane("XY")
+            .center(-(half_w / 2) + 5 + (GPS_W / 2 - 2), -(EXT_DEPTH / 4) + gy)
+            .workplane(offset=EXT_HEIGHT - WALL - GPS_H)
+            .circle(GPS_MOUNT_HOLE / 2)
+            .extrude(GPS_H + WALL + 2)
+        )
+        piece = piece.cut(gps_hole)
+
+    # -------------------------------------------------------------------------
+    # PI ACTIVITY LED WINDOW (optional, on front face near bottom-right)
+    # -------------------------------------------------------------------------
+    status_led = (
+        cq.Workplane("XZ")
+        .workplane(offset=EXT_DEPTH / 2)
+        .center(half_w / 4, SPLIT_Z + 5)
+        .rect(STATUS_LED_W, STATUS_LED_H)
+        .extrude(WALL * 3)
+    )
+    piece = piece.cut(status_led)
+
+    # -------------------------------------------------------------------------
+    # SNAP-FIT INNER RIM + TABS
+    # -------------------------------------------------------------------------
+    snap_rim_outer = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z + 1)
+        .box(half_w - 2, EXT_DEPTH - 2, 2.5, centered=True)
+    )
+    snap_rim_inner = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z + 1)
+        .box(half_w - 5, EXT_DEPTH - 5, 3.5, centered=True)
+    )
+    snap_rim = snap_rim_outer.cut(snap_rim_inner)
+    piece = piece.union(snap_rim)
+
+    for zpos in SNAP_POSITIONS_Z:
+        for y_sign in [1, -1]:
+            tab = (
+                cq.Workplane("XY")
+                .center(zpos, y_sign * (EXT_DEPTH / 2 - WALL))
+                .workplane(offset=SPLIT_Z + 1)
+                .box(SNAP_W, SNAP_DEPTH, SNAP_H, centered=True)
+            )
+            piece = piece.union(tab)
+
+    # -------------------------------------------------------------------------
+    # CENTER SEAM: groove slots (-X face, receives tongues from left-top)
+    # -------------------------------------------------------------------------
+    for tz in SEAM_TAB_POSITIONS:
+        groove = (
+            cq.Workplane("XY")
+            .center(-(half_w / 2), 0)
+            .workplane(offset=tz + EXT_HEIGHT * 3 / 4)
+            .box(SEAM_TAB_D + TOL, SEAM_TAB_W + TOL, SEAM_TAB_W + TOL, centered=True)
+        )
+        piece = piece.cut(groove)
+
+    return piece
 
 
 # =============================================================================
