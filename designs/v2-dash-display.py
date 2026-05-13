@@ -14,7 +14,6 @@ Loadable by cadquery-server via show_object().
 """
 
 import cadquery as cq
-import math
 from cq_server.ui import ui, show_object
 
 # =============================================================================
@@ -65,7 +64,7 @@ GPS_WINDOW_THICKNESS = 0.8  # thinned wall for RF transparency
 
 # --- 30mm Fan ---
 FAN_SIZE = 30
-FAN_H = 10
+FAN_H = 10             # ref only — fan depth for stack clearance calc
 FAN_MOUNT_HOLE = 3.2   # M3
 FAN_HOLE_SPACING = 24  # center-to-center
 
@@ -76,9 +75,9 @@ MAGNET_COUNT = 4
 
 # --- Case construction ---
 WALL = 2.5             # wall thickness
-CORNER_R = 3           # fillet radius
+CORNER_R = 3           # fillet radius (reserved for future outer edge fillets)
 TOL = 0.4              # fit tolerance
-WEDGE_ANGLE = 12       # degrees — tilt screen toward driver
+WEDGE_ANGLE = 12       # degrees — ref only, wedge built from EXT_DEPTH/FRONT_DEPTH
 
 # --- Enclosure zone widths (along X axis) ---
 CAM_ZONE_W = 60        # each camera end zone
@@ -276,7 +275,7 @@ def build_magnet_recess(x, y):
 # HELPER: Wedge shell and cavity
 # =============================================================================
 
-def build_wedge_shell(width, is_left=True):
+def build_wedge_shell(width):
     """
     Build a wedge-profiled outer shell for one half of the enclosure.
 
@@ -289,7 +288,6 @@ def build_wedge_shell(width, is_left=True):
 
     Args:
         width: how wide this piece is along X
-        is_left: True for left half, False for right half
     """
     # Build the trapezoidal cross-section as a 2D sketch then extrude
     # Points defined in Y-Z plane:
@@ -323,8 +321,6 @@ def build_wedge_cavity(width):
     Build the internal cavity matching the wedge profile, offset by WALL
     on all sides. Used to hollow out the shell.
     """
-    inner_depth_bottom = EXT_DEPTH - WALL * 2
-    inner_depth_top = FRONT_DEPTH - WALL * 2
     rear_top_y = EXT_DEPTH / 2 - FRONT_DEPTH + WALL
 
     cavity = (
@@ -374,8 +370,6 @@ def build_left_bottom():
     for i in range(MAGNET_COUNT // 2):
         mx = -(half_w / 2) + magnet_spacing * (i + 1)
         recess = build_magnet_recess(mx, 0)
-        # Position at bottom face
-        recess = recess.translate((0, 0, 0))
         piece = piece.cut(recess)
 
     # -------------------------------------------------------------------------
