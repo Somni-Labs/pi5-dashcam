@@ -1002,30 +1002,43 @@ def build_mounting_plate():
 # BUILD AND DISPLAY
 # =============================================================================
 
+# Build all pieces
 left_bottom = build_left_bottom()
 right_bottom = build_right_bottom()
 left_top = build_left_top()
 right_top = build_right_top()
 mount_plate = build_mounting_plate()
 
-# Position pieces for assembly preview
-# Bottom halves at Z=0 (print orientation), side by side
-show_object(left_bottom.translate((-(TOTAL_W / 4), 0, SPLIT_Z / 2)),
-            name="left_bottom",
-            options={"color": (0.15, 0.15, 0.15, 0.9)})
-show_object(right_bottom.translate((TOTAL_W / 4, 0, SPLIT_Z / 2)),
-            name="right_bottom",
-            options={"color": (0.18, 0.18, 0.18, 0.9)})
+# --- Exploded assembly preview ---
+# Bottom halves sit at Z=0, offset left/right from center
+# Top halves float above with a 5mm exploded gap
+EXPLODE_GAP = 5  # gap between top and bottom for visibility
+SEAM_GAP = 1     # tiny gap at center seam for visibility
 
-# Top halves above bottom, offset for exploded view
-show_object(left_top.translate((-(TOTAL_W / 4), 0, SPLIT_Z * 1.5 + 5)),
-            name="left_top",
-            options={"color": (0.22, 0.22, 0.22, 0.85)})
-show_object(right_top.translate((TOTAL_W / 4, 0, SPLIT_Z * 1.5 + 5)),
-            name="right_top",
-            options={"color": (0.25, 0.25, 0.25, 0.85)})
+show_object(
+    left_bottom.translate((-(TOTAL_W / 4 + SEAM_GAP / 2), 0, 0)),
+    name="left_bottom",
+    options={"color": (0.12, 0.12, 0.14, 0.9)},
+)
+show_object(
+    right_bottom.translate((TOTAL_W / 4 + SEAM_GAP / 2, 0, 0)),
+    name="right_bottom",
+    options={"color": (0.15, 0.15, 0.17, 0.9)},
+)
+show_object(
+    left_top.translate((-(TOTAL_W / 4 + SEAM_GAP / 2), 0, EXPLODE_GAP)),
+    name="left_top",
+    options={"color": (0.20, 0.20, 0.22, 0.85)},
+)
+show_object(
+    right_top.translate((TOTAL_W / 4 + SEAM_GAP / 2, 0, EXPLODE_GAP)),
+    name="right_top",
+    options={"color": (0.23, 0.23, 0.25, 0.85)},
+)
 
 # Mounting plate below for reference
-show_object(mount_plate.translate((0, 0, -10)),
-            name="mounting_plate",
-            options={"color": (0.6, 0.6, 0.6, 0.7)})
+show_object(
+    mount_plate.translate((0, 0, -15)),
+    name="mounting_plate",
+    options={"color": (0.55, 0.55, 0.60, 0.7)},
+)
