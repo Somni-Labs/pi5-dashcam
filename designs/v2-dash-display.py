@@ -181,9 +181,81 @@ def make_vent_grid(count_x, count_y, slot_w, slot_l, gap_x, gap_y, depth):
 # =============================================================================
 
 def build_camera_housing(side="front"):
-    """Build camera housing for one end of the bar. Side: 'front' or 'rear'."""
-    # TODO: implement in Task 4
-    return cq.Workplane("XY").box(1, 1, 1)
+    """
+    Build a protruding camera housing for one end of the bar.
+    The housing tilts CAM_ANGLE degrees downward and contains:
+    - Camera module cavity with lens aperture
+    - M2 screw holes for Camera Module v3
+    - CSI ribbon cable slot at the base
+
+    Side: 'front' protrudes from +X end, 'rear' from -X end.
+    The housing is built at the origin then translated into position.
+    """
+    # Outer housing block
+    housing = (
+        cq.Workplane("XY")
+        .box(CAM_HOUSING_DEPTH, CAM_HOUSING_W, CAM_HOUSING_H, centered=True)
+    )
+    housing = housing.edges("|Z").fillet(2)
+
+    # Camera module cavity
+    cam_cavity = (
+        cq.Workplane("XY")
+        .box(CAM_H + TOL, CAM_W + TOL * 2, CAM_D + TOL * 2, centered=True)
+    )
+    housing = housing.cut(cam_cavity)
+
+    # Lens aperture through the outer face (+X for front, -X for rear)
+    lens_hole = (
+        cq.Workplane("YZ")
+        .workplane(offset=CAM_HOUSING_DEPTH / 2)
+        .circle(LENS_DIA / 2 + 1.5)
+        .extrude(WALL * 2)
+    )
+    housing = housing.cut(lens_hole)
+
+    # M2 screw holes for camera board (4 corners)
+    for dy in [-CAM_HOLE_SPACING_W / 2, CAM_HOLE_SPACING_W / 2]:
+        for dz in [-CAM_HOLE_SPACING_H / 2, CAM_HOLE_SPACING_H / 2]:
+            m2_hole = (
+                cq.Workplane("YZ")
+                .center(dy, dz)
+                .workplane(offset=-(CAM_HOUSING_DEPTH / 2))
+                .circle(CAM_MOUNT_HOLE / 2)
+                .extrude(-(CAM_HOUSING_DEPTH))
+            )
+            housing = housing.cut(m2_hole)
+
+    # CSI ribbon cable slot at the inner face (toward center zone)
+    ribbon_slot = (
+        cq.Workplane("YZ")
+        .workplane(offset=-(CAM_HOUSING_DEPTH / 2))
+        .rect(CSI_SLOT_W, CSI_SLOT_H)
+        .extrude(-(WALL * 2))
+    )
+    housing = housing.cut(ribbon_slot)
+
+    # Tilt downward by CAM_ANGLE degrees (rotates around Y axis)
+    housing = housing.rotateAboutCenter((0, 1, 0), -CAM_ANGLE)
+
+    # Position at the correct end of the bar
+    if side == "front":
+        # +X end (right side / passenger side)
+        housing = housing.translate((
+            TOTAL_W / 2 + CAM_HOUSING_DEPTH / 2 - 2,
+            0,
+            0,
+        ))
+    else:
+        # -X end (left side / driver's side) — rotate 180 around Z
+        housing = housing.rotateAboutCenter((0, 0, 1), 180)
+        housing = housing.translate((
+            -(TOTAL_W / 2 + CAM_HOUSING_DEPTH / 2 - 2),
+            0,
+            0,
+        ))
+
+    return housing
 
 
 # =============================================================================
