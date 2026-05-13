@@ -637,13 +637,13 @@ def build_right_bottom():
 
 
 # =============================================================================
-# LEFT-TOP (left display bezel + rear panel + GPS recess left portion)
+# LEFT-TOP (left display bezel + left half camera pocket + GPS)
 # =============================================================================
 
 def build_left_top():
     """Left half of the top shell.
-    Contains: left display bezel, rear panel vents (left portion),
-    left portion of GPS recess + antenna window, snap-fit tabs,
+    Contains: left display bezel, left half of camera pocket,
+    rear panel vents, GPS recess (left portion), snap-fit tabs,
     center seam tongue tabs.
     """
     half_w = TOTAL_W / 2
@@ -661,67 +661,82 @@ def build_left_top():
     piece = piece.cut(bottom_cutter)
 
     # -------------------------------------------------------------------------
-    # DISPLAY BEZEL OPENING (front face, sized for the display active area)
-    # The display panel sits in a lip/frame. The opening is slightly larger
-    # than the active area to expose the full screen.
+    # DISPLAY BEZEL OPENING (front face — display zone, below camera zone)
+    # Opening is vertically centered in the display zone portion of top half
     # -------------------------------------------------------------------------
-    # Display opening spans the full width of the piece but only the left half
-    # of the active area. Opening is in the front face (Y = EXT_DEPTH/2).
+    disp_center_z = DISP_ZONE_H / 2  # center of display zone
     bezel_opening = (
         cq.Workplane("XZ")
         .workplane(offset=EXT_DEPTH / 2 - WALL + 0.5)
-        .center(0, EXT_HEIGHT / 2)
+        .center(0, disp_center_z)
         .box(half_w - WALL * 2, DISP_ACTIVE_H + 2, WALL + 1, centered=True)
     )
     piece = piece.cut(bezel_opening)
 
-    # Display panel lip (shelf for the display PCB to sit on, 2mm deep)
     disp_lip = (
         cq.Workplane("XZ")
         .workplane(offset=EXT_DEPTH / 2 - WALL - 2)
-        .center(0, EXT_HEIGHT / 2)
+        .center(0, disp_center_z)
         .box(half_w - WALL, DISP_PCB_H + TOL * 2, 2, centered=True)
     )
     piece = piece.cut(disp_lip)
 
     # -------------------------------------------------------------------------
-    # REAR PANEL VENTILATION (exhaust vents on rear face, left portion)
+    # CAMERA POCKET (left half — pocket straddles the center seam)
+    # Camera pocket is at top-center: X=0 straddles seam, Z near top
+    # -------------------------------------------------------------------------
+    cam_pocket = build_camera_pocket()
+    cam_z = DISP_ZONE_H + CAM_ZONE_H / 2  # vertical center of camera zone
+    cam_pocket = cam_pocket.translate((half_w / 2, 0, cam_z))
+    piece = piece.cut(cam_pocket)
+
+    # CSI cable channel from camera pocket down to split plane
+    csi_vertical = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z)
+        .center(half_w / 2 - 10, 0)
+        .box(CSI_SLOT_W, CSI_SLOT_H + 2, DISP_ZONE_H / 2 + CAM_ZONE_H,
+             centered=[True, True, False])
+    )
+    piece = piece.cut(csi_vertical)
+
+    # -------------------------------------------------------------------------
+    # REAR PANEL VENTILATION (left portion)
     # -------------------------------------------------------------------------
     vent_grid = make_vent_grid(4, 3, VENT_SLOT_W, VENT_SLOT_L, 4, VENT_GAP, WALL)
-    # Position on rear face (-Y), centered vertically in top half
-    rear_vents = vent_grid.translate((-(half_w / 4), -(EXT_DEPTH / 2), EXT_HEIGHT * 3 / 4))
+    rear_vents = vent_grid.translate((-(half_w / 4), -(EXT_DEPTH / 2),
+                                      SPLIT_Z + (DISP_ZONE_H - SPLIT_Z) / 2))
     rear_vents = rear_vents.rotateAboutCenter((1, 0, 0), 90)
     piece = piece.cut(rear_vents)
 
     # -------------------------------------------------------------------------
     # GPS MODULE RECESS (top-rear surface, left portion)
-    # GPS is centered at X=0 in full assembly, so it straddles the seam.
-    # Left half gets the left portion of the recess.
+    # GPS is offset from the camera pocket — positioned to the left
     # -------------------------------------------------------------------------
-    # GPS recess (full size, positioned at X=0, then only the left portion
-    # remains after the piece boundary clips it)
+    gps_x = -(half_w / 4)  # left of center in left half
+    gps_y = -(EXT_DEPTH / 4)  # rear quadrant
+    gps_z = EXT_HEIGHT - WALL - GPS_H / 2
+
     gps_recess = (
         cq.Workplane("XY")
-        .center(half_w / 2 - 5, -(EXT_DEPTH / 4))
-        .workplane(offset=EXT_HEIGHT - WALL - GPS_H / 2)
+        .center(gps_x, gps_y)
+        .workplane(offset=gps_z)
         .box(GPS_W + TOL * 2, GPS_D + TOL * 2, GPS_H + 1, centered=True)
     )
     piece = piece.cut(gps_recess)
 
-    # Thinned antenna window
     gps_window = (
         cq.Workplane("XY")
-        .center(half_w / 2 - 5, -(EXT_DEPTH / 4))
+        .center(gps_x, gps_y)
         .workplane(offset=EXT_HEIGHT - GPS_WINDOW_THICKNESS)
         .box(GPS_ANTENNA_SIZE - 4, GPS_ANTENNA_SIZE - 4, WALL, centered=True)
     )
     piece = piece.cut(gps_window)
 
-    # GPS M3 mount holes (left-side pair only)
     for gy in [-(GPS_D / 2 - 2), (GPS_D / 2 - 2)]:
         gps_hole = (
             cq.Workplane("XY")
-            .center(half_w / 2 - 5 - (GPS_W / 2 - 2), -(EXT_DEPTH / 4) + gy)
+            .center(gps_x - (GPS_W / 2 - 2), gps_y + gy)
             .workplane(offset=EXT_HEIGHT - WALL - GPS_H)
             .circle(GPS_MOUNT_HOLE / 2)
             .extrude(GPS_H + WALL + 2)
@@ -729,7 +744,7 @@ def build_left_top():
         piece = piece.cut(gps_hole)
 
     # -------------------------------------------------------------------------
-    # SNAP-FIT INNER RIM + TABS (mates with bottom half's ledge)
+    # SNAP-FIT INNER RIM + TABS
     # -------------------------------------------------------------------------
     snap_rim_outer = (
         cq.Workplane("XY")
@@ -744,12 +759,11 @@ def build_left_top():
     snap_rim = snap_rim_outer.cut(snap_rim_inner)
     piece = piece.union(snap_rim)
 
-    # Snap-fit tabs along long edges (front + rear)
-    for zpos in SNAP_POSITIONS_Z:
-        for y_sign in [1, -1]:  # front and rear edges
+    for xpos in SNAP_POSITIONS_X:
+        for y_sign in [1, -1]:
             tab = (
                 cq.Workplane("XY")
-                .center(zpos, y_sign * (EXT_DEPTH / 2 - WALL))
+                .center(xpos, y_sign * (EXT_DEPTH / 2 - WALL))
                 .workplane(offset=SPLIT_Z + 1)
                 .box(SNAP_W, SNAP_DEPTH, SNAP_H, centered=True)
             )
