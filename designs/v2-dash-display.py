@@ -487,10 +487,191 @@ def build_left_bottom():
 # =============================================================================
 
 def build_right_bottom():
-    """Right half of the bottom shell. Contains front camera housing,
-    magnet recesses, right-side Pi standoffs, port cutouts, CSI cable channel."""
-    # TODO: implement in Task 6
-    return cq.Workplane("XY").box(TOTAL_W / 2, EXT_DEPTH, SPLIT_Z, centered=True)
+    """Right half of the bottom shell.
+    Contains: front camera housing, magnet recesses, right-side Pi standoffs,
+    port cutouts (USB-C, microSD, power button), cable routing channel,
+    recording LED, center seam groove slots + screw boss.
+    """
+    half_w = TOTAL_W / 2
+
+    # --- Outer wedge shell (right half) ---
+    shell = build_wedge_shell(half_w)
+    cavity = build_wedge_cavity(half_w)
+    piece = shell.cut(cavity)
+
+    # --- Keep only bottom half ---
+    top_cutter = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z)
+        .box(half_w + 10, EXT_DEPTH + 10, EXT_HEIGHT, centered=[True, True, False])
+    )
+    piece = piece.cut(top_cutter)
+
+    # -------------------------------------------------------------------------
+    # MAGNET RECESSES (2 magnets in right half)
+    # -------------------------------------------------------------------------
+    magnet_spacing = PLATE_W / (MAGNET_COUNT + 1)
+    for i in range(MAGNET_COUNT // 2):
+        mx = -(half_w / 2) + magnet_spacing * (i + 1)
+        recess = build_magnet_recess(mx, 0)
+        piece = piece.cut(recess)
+
+    # -------------------------------------------------------------------------
+    # PI 5 MOUNTING STANDOFFS (right-side holes: indices 1 and 3)
+    # -------------------------------------------------------------------------
+    pi_center_y = EXT_DEPTH / 2 - WALL - DISP_PCB_T - DSI_CABLE_GAP - PI_D / 2
+
+    for idx in [1, 3]:  # right-side Pi holes (X = 79.5mm from Pi left edge)
+        hx, hy = PI_HOLES[idx]
+        px = hx - PI_W / 2  # offset from Pi center
+        py = pi_center_y + (hy - PI_D / 2)
+        pz = WALL
+
+        standoff = (
+            cq.Workplane("XY")
+            .center(px, py)
+            .workplane(offset=pz)
+            .circle(STANDOFF_OUTER_R)
+            .extrude(STANDOFF_H)
+        )
+        screw_hole = (
+            cq.Workplane("XY")
+            .center(px, py)
+            .workplane(offset=pz - 0.5)
+            .circle(PI_MOUNT_HOLE / 2)
+            .extrude(STANDOFF_H + 1)
+        )
+        post = standoff.cut(screw_hole)
+        piece = piece.union(post)
+
+    # -------------------------------------------------------------------------
+    # PORT CUTOUTS (right side of center zone, accessible from +X face
+    # of the right half or from the side walls)
+    # Pi ports face the +X direction (passenger side).
+    # USB-C power: near bottom of Pi's 56mm edge
+    # microSD: opposite short edge (but Pi is in center, so this is near seam)
+    # Power button: top of PCB near GPIO edge
+    # -------------------------------------------------------------------------
+
+    # USB-C power port (through the side wall, Y-aligned)
+    # Pi USB-C is ~11.2mm from the bottom of the 56mm edge
+    usbc_z = WALL + STANDOFF_H + PI_PCB_H + 1.6
+    usbc = (
+        cq.Workplane("YZ")
+        .workplane(offset=half_w / 4)  # offset toward right side wall
+        .center(pi_center_y - PI_D / 2 + 11.2, usbc_z)
+        .rect(USBC_W, USBC_H)
+        .extrude(WALL + 2)
+    )
+    piece = piece.cut(usbc)
+
+    # Cable routing channel below USB-C
+    cable_chan = (
+        cq.Workplane("YZ")
+        .workplane(offset=half_w / 4)
+        .center(pi_center_y - PI_D / 2 + 11.2, WALL + 2)
+        .rect(CABLE_CHAN_W, CABLE_CHAN_H)
+        .extrude(WALL + 2)
+    )
+    piece = piece.cut(cable_chan)
+
+    # microSD slot (through the side wall near the seam, -X direction)
+    sd_slot = (
+        cq.Workplane("YZ")
+        .workplane(offset=-(half_w / 4))
+        .center(pi_center_y, WALL + 2)
+        .rect(SD_SLOT_W, SD_SLOT_H)
+        .extrude(-(WALL + 2))
+    )
+    piece = piece.cut(sd_slot)
+
+    # Power button access hole
+    pwr_btn = (
+        cq.Workplane("YZ")
+        .workplane(offset=half_w / 4)
+        .center(pi_center_y + PI_D / 2 - 5, WALL + STANDOFF_H + PI_PCB_H + 3)
+        .circle(PWR_BTN_DIA / 2)
+        .extrude(WALL + 2)
+    )
+    piece = piece.cut(pwr_btn)
+
+    # -------------------------------------------------------------------------
+    # RECORDING LED (front face, visible to driver)
+    # -------------------------------------------------------------------------
+    rec_led = (
+        cq.Workplane("XZ")
+        .center(10, SPLIT_Z / 3)
+        .workplane(offset=EXT_DEPTH / 2)
+        .circle(LED_DIA / 2)
+        .extrude(WALL * 3)
+    )
+    piece = piece.cut(rec_led)
+
+    # -------------------------------------------------------------------------
+    # CSI RIBBON CABLE CHANNEL (floor-level groove from center to right end)
+    # -------------------------------------------------------------------------
+    csi_channel = (
+        cq.Workplane("XY")
+        .workplane(offset=WALL)
+        .center(half_w / 4, pi_center_y)
+        .box(half_w / 2, CSI_SLOT_W, CSI_SLOT_H, centered=True)
+    )
+    piece = piece.cut(csi_channel)
+
+    # -------------------------------------------------------------------------
+    # SNAP-FIT LEDGE
+    # -------------------------------------------------------------------------
+    snap_ledge_outer = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z - 2)
+        .box(half_w - 2, EXT_DEPTH - 2, 2, centered=[True, True, False])
+    )
+    snap_ledge_inner = (
+        cq.Workplane("XY")
+        .workplane(offset=SPLIT_Z - 2.5)
+        .box(half_w - 6, EXT_DEPTH - 6, 3, centered=[True, True, False])
+    )
+    snap_ledge = snap_ledge_outer.cut(snap_ledge_inner)
+    piece = piece.union(snap_ledge)
+
+    # -------------------------------------------------------------------------
+    # CENTER SEAM: groove slots (receive tongues from left half)
+    # -------------------------------------------------------------------------
+    for tz in SEAM_TAB_POSITIONS:
+        groove = (
+            cq.Workplane("XY")
+            .center(-(half_w / 2), 0)
+            .workplane(offset=tz + SPLIT_Z / 2)
+            .box(SEAM_TAB_D + TOL, SEAM_TAB_W + TOL, SEAM_TAB_W + TOL, centered=True)
+        )
+        piece = piece.cut(groove)
+
+    # Seam screw boss (receives screw from left half)
+    boss = (
+        cq.Workplane("XY")
+        .center(-(half_w / 2) + SEAM_BOSS_R, 0)
+        .workplane(offset=SPLIT_Z / 2)
+        .circle(SEAM_BOSS_R)
+        .extrude(SPLIT_Z / 4)
+    )
+    boss_hole = (
+        cq.Workplane("XY")
+        .center(-(half_w / 2) + SEAM_BOSS_R, 0)
+        .workplane(offset=SPLIT_Z / 2 - 1)
+        .circle(SEAM_SCREW_HOLE / 2)
+        .extrude(SPLIT_Z / 4 + 2)
+    )
+    boss = boss.cut(boss_hole)
+    piece = piece.union(boss)
+
+    # -------------------------------------------------------------------------
+    # FRONT CAMERA HOUSING (protruding from +X end)
+    # -------------------------------------------------------------------------
+    front_cam = build_camera_housing("front")
+    front_cam = front_cam.translate((0, 0, SPLIT_Z / 2))
+    piece = piece.union(front_cam)
+
+    return piece
 
 
 # =============================================================================
