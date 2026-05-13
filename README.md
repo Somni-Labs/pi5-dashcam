@@ -17,6 +17,7 @@
 |------|-------------|
 | `designs/v0-prototype.py` | Simplified prototype — open-top tray for fit checks |
 | `designs/v1-dashcam.py` | V1 — full snap-fit enclosure with all features |
+| `designs/v2-dash-display.py` | V2 — ultra-wide 11.9" touchscreen bar with magnetic dash mount |
 | `stl/` | Exported STL files ready for slicing |
 
 Designs are written in **CadQuery** (Python) and rendered via [cadquery-server](https://github.com/robodk/cadquery-server). Open in any CadQuery-compatible viewer or our self-hosted instance.
@@ -34,6 +35,19 @@ Designs are written in **CadQuery** (Python) and rendered via [cadquery-server](
 - **Full port access** — USB-C power, microSD, power button
 - **Ventilation** — side grids + fan intake
 - **2.5mm walls** — PETG, vibration resistant for vehicle use
+
+## V2 Features (Dash Display)
+
+- **Ultra-wide 11.9" touchscreen** — Waveshare 320x1480 capacitive DSI display
+- **4-piece snap-fit enclosure** — left/right × top/bottom, prints on QIDI Q2 (270x270mm)
+- **Wedge profile** — 12-degree tilt angles screen toward driver
+- **Integrated camera mounts** — front and rear cameras at bar ends, 15-degree downward tilt
+- **Magnetic dash mount** — 4x neodymium magnets snap onto 3M-adhered steel plate
+- **30mm fan mount** — rear-wall exhaust for active cooling of AI HAT+
+- **GPS module recess** — top-mounted with thinned antenna window
+- **Center seam joining** — tongue-and-groove + M3 screws for left/right alignment
+- **Full port access** — USB-C power, microSD, power button
+- **Internal CSI cable channels** — ribbon cables route through enclosure floor
 
 ## Print Settings
 
