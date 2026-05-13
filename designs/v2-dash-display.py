@@ -1,14 +1,20 @@
 """
-Pi 5 + AI HAT Dash Display Enclosure -- V2
-Ultra-wide 11.9" touchscreen bar with dual cameras -- Dashboard mount
+Pi 5 + AI HAT Dash Display Enclosure -- V2.1
+Ultra-wide 11.9" touchscreen bar with flush center cameras -- Dashboard mount
 
 Designed for: Raspberry Pi 5 + AI HAT+ (Hailo-8L)
 Display: Waveshare 11.9" DSI LCD (320x1480, capacitive touch)
-Cameras: 2x Raspberry Pi Camera Module v3 (integrated end housings)
+Cameras: 2x Raspberry Pi Camera Module v3 (flush center-top, back-to-back)
 GPS: u-blox NEO-6M breakout (38x26mm PCB with 25x25mm ceramic antenna)
-Features: Magnetic dash mount, 12-degree wedge tilt, 30mm fan,
+Features: Magnetic dash mount, 9-degree wedge tilt, 30mm fan,
           4-piece snap-fit enclosure (prints on QIDI Q2 270x270x256mm)
 Print material: PETG recommended (heat + vibration + UV resistant)
+
+V2.1 changes from V2:
+  - Cameras moved from protruding end housings to flush back-to-back center-top
+  - End zones eliminated — bar trimmed to display width + bezel
+  - Wedge angle reduced from 12 to 9 degrees (front wall 20mm for camera depth)
+  - Bar taller than display to fit camera section above screen
 
 Loadable by cadquery-server via show_object().
 """
@@ -54,6 +60,13 @@ CAM_HOLE_SPACING_W = 21    # horizontal hole center-to-center
 CAM_HOLE_SPACING_H = 12.5  # vertical hole center-to-center
 CAM_ANGLE = 15         # degrees downward tilt for road view
 
+# --- Camera pocket (flush center-top, back-to-back) ---
+# Two Camera Module v3s back-to-back: total depth ≈ 2*CAM_H + gap
+CAM_POCKET_W = 30      # pocket width (X) — camera board + clearance
+CAM_POCKET_H = 28      # pocket height (Z) — camera board + tilt clearance
+CAM_POCKET_D = 25      # pocket depth (Y) — two modules back-to-back + gap
+CAM_POCKET_GAP = 2     # gap between the two camera PCBs
+
 # --- GPS Module (u-blox NEO-6M breakout) ---
 GPS_W = 26             # board width
 GPS_D = 38             # board length
@@ -75,33 +88,33 @@ MAGNET_COUNT = 4
 
 # --- Case construction ---
 WALL = 2.5             # wall thickness
-CORNER_R = 3           # fillet radius (reserved for future outer edge fillets)
 TOL = 0.4              # fit tolerance
-WEDGE_ANGLE = 12       # degrees — ref only, wedge built from EXT_DEPTH/FRONT_DEPTH
 
-# --- Enclosure zone widths (along X axis) ---
-CAM_ZONE_W = 60        # each camera end zone
-CENTER_ZONE_W = 170    # center zone (display + Pi stack)
-TOTAL_W = CAM_ZONE_W * 2 + CENTER_ZONE_W  # ~290mm
+# --- Enclosure width (along X axis) ---
+# No end zones — bar is trimmed to display PCB + minimal bezel
+BEZEL_MARGIN = 4       # extra bezel beyond display PCB on each side
+TOTAL_W = DISP_PCB_W + BEZEL_MARGIN * 2  # ~295mm
 
 # --- Enclosure depths (along Y axis, front to rear) ---
 # Internal stack: display(5) + gap(3) + standoff(5) + Pi(1.6) +
 #   stacking(16) + HAT(5.5) + airflow(5) + fan(10) = ~51
-# With walls: ~56mm. But wedge means front is thinner.
-INTERNAL_DEPTH = 51    # deepest internal dimension at base
-EXT_DEPTH = INTERNAL_DEPTH + WALL * 2  # ~56mm at thickest (rear base)
-FRONT_DEPTH = 15       # front edge thickness (display + bezel only)
+# With walls: ~56mm. Wedge means front is thinner.
+INTERNAL_DEPTH = 46    # deepest internal dimension at base (reduced from V2)
+EXT_DEPTH = INTERNAL_DEPTH + WALL * 2  # ~51mm at thickest (rear base)
+FRONT_DEPTH = 20       # front edge thickness at top (fits camera module)
 
 # --- Enclosure height (along Z axis) ---
-EXT_HEIGHT = DISP_PCB_H + WALL * 2 + TOL * 2  # ~75mm total height
-SPLIT_Z = EXT_HEIGHT / 2  # top-bottom shell split
+# Display zone + camera zone above it
+CAM_ZONE_H = 25        # height of camera section above display
+DISP_ZONE_H = DISP_PCB_H + WALL * 2 + TOL * 2  # ~75mm display zone
+EXT_HEIGHT = DISP_ZONE_H + CAM_ZONE_H  # ~100mm total height
+SPLIT_Z = DISP_ZONE_H / 2  # top-bottom shell split (at display zone midpoint)
 
 # --- Snap-fit tabs ---
 SNAP_W = 12
 SNAP_H = 3
 SNAP_DEPTH = 1.5
-# Snap positions along Z edges of each half (3 per long side per half)
-SNAP_POSITIONS_Z = [-20, 0, 20]
+SNAP_POSITIONS_X = [-40, 0, 40]  # along X edges of each half
 
 # --- Center seam joining (left-right halves) ---
 SEAM_TAB_W = 8         # tongue-and-groove tab width
@@ -128,10 +141,7 @@ PWR_BTN_DIA = 7        # power button access hole
 CABLE_CHAN_W = 10       # cable routing channel width
 CABLE_CHAN_H = 8        # cable routing channel height
 
-# --- Camera housing ---
-CAM_HOUSING_W = CAM_W + WALL * 2 + 4   # ~33mm
-CAM_HOUSING_H = CAM_D + WALL * 2 + 4   # ~32mm
-CAM_HOUSING_DEPTH = CAM_H + WALL + 4   # ~18mm protrusion
+# --- CSI ribbon cable ---
 CSI_SLOT_W = 17        # CSI ribbon cable slot width
 CSI_SLOT_H = 3         # CSI ribbon cable slot height
 
