@@ -945,8 +945,7 @@ def build_right_top():
 # =============================================================================
 
 def build_mounting_plate():
-    """Flat steel plate outline for magnetic dash mount.
-    Print this as a template or use for laser-cut ordering."""
+    """Flat steel plate outline for magnetic dash mount."""
     plate = (
         cq.Workplane("XY")
         .box(PLATE_W, PLATE_D, PLATE_H, centered=True)
@@ -967,8 +966,6 @@ right_top = build_right_top()
 mount_plate = build_mounting_plate()
 
 # --- Exploded assembly preview ---
-# Bottom halves sit at Z=0, offset left/right from center
-# Top halves float above with a 5mm exploded gap
 EXPLODE_GAP = 5  # gap between top and bottom for visibility
 SEAM_GAP = 1     # tiny gap at center seam for visibility
 
