@@ -20,7 +20,7 @@ Loadable by cadquery-server via show_object().
 """
 
 import cadquery as cq
-from cq_server.ui import show_object
+from cq_server.ui import ui, show_object  # ui import required by cq-server
 
 # =============================================================================
 # PARAMETRIC DIMENSIONS (all in mm)
